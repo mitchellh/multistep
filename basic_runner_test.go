@@ -21,8 +21,16 @@ func TestBasicRunner_Run(t *testing.T) {
 	r := &BasicRunner{[]Step{stepA, stepB}}
 	r.Run(data)
 
+	// Test run data
 	expected := []string{"a", "b"}
 	results := data["data"].([]string)
+	if !reflect.DeepEqual(results, expected) {
+		t.Errorf("unexpected result: %#v", results)
+	}
+
+	// Test cleanup data
+	expected = []string{"b", "a"}
+	results = data["cleanup"].([]string)
 	if !reflect.DeepEqual(results, expected) {
 		t.Errorf("unexpected result: %#v", results)
 	}
@@ -37,8 +45,16 @@ func TestBasicRunner_Run_Halt(t *testing.T) {
 	r := &BasicRunner{[]Step{stepA, stepB, stepC}}
 	r.Run(data)
 
+	// Test run data
 	expected := []string{"a", "b"}
 	results := data["data"].([]string)
+	if !reflect.DeepEqual(results, expected) {
+		t.Errorf("unexpected result: %#v", results)
+	}
+
+	// Test cleanup data
+	expected = []string{"b", "a"}
+	results = data["cleanup"].([]string)
 	if !reflect.DeepEqual(results, expected) {
 		t.Errorf("unexpected result: %#v", results)
 	}

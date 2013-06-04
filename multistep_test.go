@@ -12,13 +12,7 @@ type TestStepAcc struct {
 }
 
 func (s TestStepAcc) Run(state map[string]interface{}) StepAction {
-	if _, ok := state["data"]; !ok {
-		state["data"] = make([]string, 0, 5)
-	}
-
-	data := state["data"].([]string)
-	data = append(data, s.Data)
-	state["data"] = data
+	s.insertData(state, "data")
 
 	if s.Halt {
 		return ActionHalt
@@ -27,5 +21,16 @@ func (s TestStepAcc) Run(state map[string]interface{}) StepAction {
 	return ActionContinue
 }
 
-func (s TestStepAcc) Cleanup(map[string]interface{}) {
+func (s TestStepAcc) Cleanup(state map[string]interface{}) {
+	s.insertData(state, "cleanup")
+}
+
+func (s TestStepAcc) insertData(state map[string]interface{}, key string) {
+	if _, ok := state[key]; !ok {
+		state[key] = make([]string, 0, 5)
+	}
+
+	data := state[key].([]string)
+	data = append(data, s.Data)
+	state[key] = data
 }
