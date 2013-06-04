@@ -11,6 +11,11 @@ type TestStepAcc struct {
 	Halt bool
 }
 
+// A step that syncs by sending a channel and expecting a response.
+type TestStepSync struct {
+	Ch chan chan bool
+}
+
 func (s TestStepAcc) Run(state map[string]interface{}) StepAction {
 	s.insertData(state, "data")
 
@@ -34,3 +39,13 @@ func (s TestStepAcc) insertData(state map[string]interface{}, key string) {
 	data = append(data, s.Data)
 	state[key] = data
 }
+
+func (s TestStepSync) Run(map[string]interface{}) StepAction {
+	ch := make(chan bool)
+	s.Ch <- ch
+	<-ch
+
+	return ActionContinue
+}
+
+func (s TestStepSync) Cleanup(map[string]interface{}) {}
