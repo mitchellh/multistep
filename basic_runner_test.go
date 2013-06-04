@@ -97,4 +97,10 @@ func TestBasicRunner_Cancel(t *testing.T) {
 	if !reflect.DeepEqual(results, expected) {
 		t.Errorf("unexpected result: %#v", results)
 	}
+
+	// Test that it says it is cancelled
+	cancelled := data["cancelled"].(bool)
+	if !cancelled {
+		t.Errorf("not cancelled")
+	}
 }

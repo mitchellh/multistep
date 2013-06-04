@@ -38,6 +38,7 @@ StepLoop:
 		// and just exit the loop now.
 		select {
 		case doneCh = <-b.cancelCh:
+			state["cancelled"] = true
 			break StepLoop
 		default:
 		}
