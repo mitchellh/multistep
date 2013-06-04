@@ -15,10 +15,26 @@ func TestBasicRunner_ImplRunner(t *testing.T) {
 
 func TestBasicRunner_Run(t *testing.T) {
 	data := make(map[string]interface{})
-	stepA := &TestStepAcc{"a"}
-	stepB := &TestStepAcc{"b"}
+	stepA := &TestStepAcc{Data: "a"}
+	stepB := &TestStepAcc{Data: "b"}
 
 	r := &BasicRunner{[]Step{stepA, stepB}}
+	r.Run(data)
+
+	expected := []string{"a", "b"}
+	results := data["data"].([]string)
+	if !reflect.DeepEqual(results, expected) {
+		t.Errorf("unexpected result: %#v", results)
+	}
+}
+
+func TestBasicRunner_Run_Halt(t *testing.T) {
+	data := make(map[string]interface{})
+	stepA := &TestStepAcc{Data: "a"}
+	stepB := &TestStepAcc{Data: "b", Halt: true}
+	stepC := &TestStepAcc{Data: "c"}
+
+	r := &BasicRunner{[]Step{stepA, stepB, stepC}}
 	r.Run(data)
 
 	expected := []string{"a", "b"}

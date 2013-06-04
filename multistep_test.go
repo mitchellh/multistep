@@ -6,6 +6,9 @@ package multistep
 type TestStepAcc struct {
 	// The data inserted into the state bag.
 	Data string
+
+	// If true, it will halt at the step when it is run
+	Halt bool
 }
 
 func (s TestStepAcc) Run(state map[string]interface{}) StepAction {
@@ -16,6 +19,10 @@ func (s TestStepAcc) Run(state map[string]interface{}) StepAction {
 	data := state["data"].([]string)
 	data = append(data, s.Data)
 	state["data"] = data
+
+	if s.Halt {
+		return ActionHalt
+	}
 
 	return ActionContinue
 }
