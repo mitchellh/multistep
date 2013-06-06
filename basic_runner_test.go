@@ -34,6 +34,15 @@ func TestBasicRunner_Run(t *testing.T) {
 	if !reflect.DeepEqual(results, expected) {
 		t.Errorf("unexpected result: %#v", results)
 	}
+
+	// Test no halted or cancelled
+	if _, ok := data["cancelled"]; ok {
+		t.Errorf("cancelled should not be in state bag")
+	}
+
+	if _, ok := data["halted"]; ok {
+		t.Errorf("halted should not be in state bag")
+	}
 }
 
 func TestBasicRunner_Run_Halt(t *testing.T) {
@@ -57,6 +66,12 @@ func TestBasicRunner_Run_Halt(t *testing.T) {
 	results = data["cleanup"].([]string)
 	if !reflect.DeepEqual(results, expected) {
 		t.Errorf("unexpected result: %#v", results)
+	}
+
+	// Test that it says it is halted
+	halted := data["halted"].(bool)
+	if !halted {
+		t.Errorf("not halted")
 	}
 }
 

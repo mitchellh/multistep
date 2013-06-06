@@ -49,6 +49,7 @@ func (b *BasicRunner) Run(state map[string]interface{}) {
 		defer step.Cleanup(state)
 
 		if action == ActionHalt {
+			state["halted"] = true
 			break
 		}
 	}
