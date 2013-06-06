@@ -36,11 +36,11 @@ func TestBasicRunner_Run(t *testing.T) {
 	}
 
 	// Test no halted or cancelled
-	if _, ok := data["cancelled"]; ok {
+	if _, ok := data[StateCancelled]; ok {
 		t.Errorf("cancelled should not be in state bag")
 	}
 
-	if _, ok := data["halted"]; ok {
+	if _, ok := data[StateHalted]; ok {
 		t.Errorf("halted should not be in state bag")
 	}
 }
@@ -69,7 +69,7 @@ func TestBasicRunner_Run_Halt(t *testing.T) {
 	}
 
 	// Test that it says it is halted
-	halted := data["halted"].(bool)
+	halted := data[StateHalted].(bool)
 	if !halted {
 		t.Errorf("not halted")
 	}
@@ -114,7 +114,7 @@ func TestBasicRunner_Cancel(t *testing.T) {
 	}
 
 	// Test that it says it is cancelled
-	cancelled := data["cancelled"].(bool)
+	cancelled := data[StateCancelled].(bool)
 	if !cancelled {
 		t.Errorf("not cancelled")
 	}

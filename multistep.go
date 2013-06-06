@@ -10,6 +10,13 @@ const (
 	ActionHalt
 )
 
+// This is the key set in the state bag when using the basic runner to
+// signal that the step sequence was cancelled.
+const StateCancelled = "cancelled"
+
+// This is the key set in the state bag when a step halted the sequence.
+const StateHalted = "halted"
+
 // Step is a single step that is part of a potentially large sequence
 // of other steps, responsible for performing some specific action.
 type Step interface {

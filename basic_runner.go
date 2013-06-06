@@ -43,7 +43,7 @@ func (b *BasicRunner) Run(state map[string]interface{}) {
 		// If we got a cancel notification, then set the done channel
 		// and just exit the loop now.
 		if b.cancelChs != nil {
-			state["cancelled"] = true
+			state[StateCancelled] = true
 			break
 		}
 
@@ -51,7 +51,7 @@ func (b *BasicRunner) Run(state map[string]interface{}) {
 		defer step.Cleanup(state)
 
 		if action == ActionHalt {
-			state["halted"] = true
+			state[StateHalted] = true
 			break
 		}
 	}
