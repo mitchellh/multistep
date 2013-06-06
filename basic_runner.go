@@ -8,9 +8,9 @@ type BasicRunner struct {
 	// modified.
 	Steps []Step
 
-	cancelCh chan chan bool
-	running  bool
-	l        sync.Mutex
+	cancelChs []chan<- bool
+	running   bool
+	l         sync.Mutex
 }
 
 func (b *BasicRunner) Run(state map[string]interface{}) {
@@ -19,28 +19,30 @@ func (b *BasicRunner) Run(state map[string]interface{}) {
 	if b.running {
 		panic("already running")
 	}
+	b.cancelChs = nil
 	b.running = true
 	b.l.Unlock()
 
 	// Create the channel that we'll say we're done on in the case of
 	// interrupts here. We do this here so that this deferred statement
 	// runs last, so all the Cleanup methods are able to run.
-	var doneCh chan bool
 	defer func() {
-		if doneCh != nil {
+		b.l.Lock()
+		defer b.l.Unlock()
+
+		for _, doneCh := range b.cancelChs {
 			doneCh <- true
 		}
+
+		b.running = false
 	}()
 
-StepLoop:
 	for _, step := range b.Steps {
 		// If we got a cancel notification, then set the done channel
 		// and just exit the loop now.
-		select {
-		case doneCh = <-b.cancelCh:
+		if b.cancelChs != nil {
 			state["cancelled"] = true
-			break StepLoop
-		default:
+			break
 		}
 
 		action := step.Run(state)
@@ -50,20 +52,23 @@ StepLoop:
 			break
 		}
 	}
-
-	b.running = false
 }
 
 func (b *BasicRunner) Cancel() {
 	b.l.Lock()
-	defer b.l.Unlock()
 
 	if !b.running {
+		b.l.Unlock()
 		return
 	}
 
+	if b.cancelChs == nil {
+		b.cancelChs = make([]chan<- bool, 0, 5)
+	}
+
 	done := make(chan bool)
-	b.cancelCh = make(chan chan bool)
-	b.cancelCh <- done
+	b.cancelChs = append(b.cancelChs, done)
+	b.l.Unlock()
+
 	<-done
 }
