@@ -30,8 +30,10 @@ func (b *BasicRunner) Run(state map[string]interface{}) {
 		b.l.Lock()
 		defer b.l.Unlock()
 
-		for _, doneCh := range b.cancelChs {
-			doneCh <- true
+		if b.cancelChs != nil {
+			for _, doneCh := range b.cancelChs {
+				doneCh <- true
+			}
 		}
 
 		b.running = false
