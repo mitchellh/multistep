@@ -34,7 +34,7 @@ func main() {
     // Our "bag of state" that we read the value from
     state := make(map[string]interface{})
 
-    // Our intial value
+    // Our initial value
     state["value"] = 0
 
     steps := []multistep.Step{
@@ -53,7 +53,7 @@ func main() {
 This will produce:
 
 ```
+Value is 0
 Value is 1
 Value is 2
-Value is 3
 ```
