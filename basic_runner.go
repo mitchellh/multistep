@@ -61,7 +61,9 @@ func (b *BasicRunner) Run(state map[string]interface{}) {
 		// waiting for cancellation is actually waiting. Then we broadcast
 		// to it so it can unlock. Then we wait for it to tell us it finished.
 		<-cancelReady
+		b.cancelCond.L.Lock()
 		b.cancelCond.Broadcast()
+		b.cancelCond.L.Unlock()
 		<-cancelEnded
 
 		b.running = false
