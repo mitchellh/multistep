@@ -3,6 +3,7 @@ package multistep
 import (
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestBasicRunner_ImplRunner(t *testing.T) {
@@ -96,7 +97,15 @@ func TestBasicRunner_Cancel(t *testing.T) {
 		cancelCh <- true
 	}()
 
-	responseCh <- true
+	for {
+		if _, ok := data[StateCancelled]; ok {
+			responseCh <- true
+			break
+		}
+
+		time.Sleep(10 * time.Millisecond)
+	}
+
 	<-cancelCh
 
 	// Test run data

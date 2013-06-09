@@ -8,9 +8,10 @@ type BasicRunner struct {
 	// modified.
 	Steps []Step
 
-	cancelChs []chan<- bool
-	running   bool
-	l         sync.Mutex
+	cancelCond *sync.Cond
+	cancelChs  []chan<- bool
+	running    bool
+	l          sync.Mutex
 }
 
 func (b *BasicRunner) Run(state map[string]interface{}) {
@@ -20,8 +21,27 @@ func (b *BasicRunner) Run(state map[string]interface{}) {
 		panic("already running")
 	}
 	b.cancelChs = nil
+	b.cancelCond = sync.NewCond(&sync.Mutex{})
 	b.running = true
 	b.l.Unlock()
+
+	// cancelReady is used to signal that the cancellation goroutine
+	// started and is waiting. The cancelEnded channel is used to
+	// signal the goroutine actually ended.
+	cancelReady := make(chan bool, 1)
+	cancelEnded := make(chan bool)
+	go func() {
+		b.cancelCond.L.Lock()
+		cancelReady <- true
+		b.cancelCond.Wait()
+		b.cancelCond.L.Unlock()
+
+		if b.cancelChs != nil {
+			state[StateCancelled] = true
+		}
+
+		cancelEnded <- true
+	}()
 
 	// Create the channel that we'll say we're done on in the case of
 	// interrupts here. We do this here so that this deferred statement
@@ -36,12 +56,20 @@ func (b *BasicRunner) Run(state map[string]interface{}) {
 			}
 		}
 
+		// Make sure the cancellation goroutine cleans up properly. This
+		// is a bit complicated. Basically, we first wait until the goroutine
+		// waiting for cancellation is actually waiting. Then we broadcast
+		// to it so it can unlock. Then we wait for it to tell us it finished.
+		<-cancelReady
+		b.cancelCond.Broadcast()
+		<-cancelEnded
+
 		b.running = false
 	}()
 
 	for _, step := range b.Steps {
-		// If we got a cancel notification, then set the done channel
-		// and just exit the loop now.
+		// We also check for cancellation here since we can't be sure
+		// the goroutine that is running to set it actually ran.
 		if b.cancelChs != nil {
 			state[StateCancelled] = true
 			break
@@ -49,6 +77,10 @@ func (b *BasicRunner) Run(state map[string]interface{}) {
 
 		action := step.Run(state)
 		defer step.Cleanup(state)
+
+		if _, ok := state[StateCancelled]; ok {
+			break
+		}
 
 		if action == ActionHalt {
 			state[StateHalted] = true
@@ -71,6 +103,7 @@ func (b *BasicRunner) Cancel() {
 
 	done := make(chan bool)
 	b.cancelChs = append(b.cancelChs, done)
+	b.cancelCond.Broadcast()
 	b.l.Unlock()
 
 	<-done
