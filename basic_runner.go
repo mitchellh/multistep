@@ -50,12 +50,6 @@ func (b *BasicRunner) Run(state map[string]interface{}) {
 		b.l.Lock()
 		defer b.l.Unlock()
 
-		if b.cancelChs != nil {
-			for _, doneCh := range b.cancelChs {
-				doneCh <- true
-			}
-		}
-
 		// Make sure the cancellation goroutine cleans up properly. This
 		// is a bit complicated. Basically, we first wait until the goroutine
 		// waiting for cancellation is actually waiting. Then we broadcast
@@ -65,6 +59,12 @@ func (b *BasicRunner) Run(state map[string]interface{}) {
 		b.cancelCond.Broadcast()
 		b.cancelCond.L.Unlock()
 		<-cancelEnded
+
+		if b.cancelChs != nil {
+			for _, doneCh := range b.cancelChs {
+				doneCh <- true
+			}
+		}
 
 		b.running = false
 	}()
