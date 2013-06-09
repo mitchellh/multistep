@@ -7,6 +7,9 @@ if necessary.
 
 ## Basic Example
 
+Make a step to perform some action. The step can access your "state",
+which is passed between steps by the runner.
+
 ```go
 type stepAdd struct{}
 
@@ -24,7 +27,7 @@ func (s *stepAdd) Run(state map[string]interface{}) multistep.StepAction {
 func (s *stepAdd) Cleanup(map[string]interface{}) {}
 ```
 
-Call your step from a runner.
+Make a runner and call your array of Steps.
 
 ```go
 func main() {
