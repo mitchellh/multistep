@@ -1,6 +1,7 @@
 package multistep
 
 import (
+	"fmt"
 	"reflect"
 	"sync"
 )
@@ -80,7 +81,8 @@ func (r *DebugRunner) Cancel() {
 // to stderr about the step and waits for keyboard input on stdin before
 // continuing.
 func DebugPauseDefault(loc DebugLocation, name string, state map[string]interface{}) {
-	// TODO(mitchellh): Everything.
+	var line string
+	fmt.Scanln(&line)
 }
 
 type debugStepPause struct {

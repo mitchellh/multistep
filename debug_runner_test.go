@@ -1,8 +1,10 @@
 package multistep
 
 import (
+	"os"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestDebugRunner_Impl(t *testing.T) {
@@ -51,5 +53,43 @@ func TestDebugRunner_Run(t *testing.T) {
 	results = data["cleanup"].([]string)
 	if !reflect.DeepEqual(results, expected) {
 		t.Errorf("unexpected results: %#v", results)
+	}
+}
+
+func TestDebugPauseDefault(t *testing.T) {
+	loc := DebugLocationAfterRun
+	name := "foo"
+	state := map[string]interface{}{}
+
+	// Create a pipe pair so that writes/reads are blocked until we do it
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	// Set stdin so we can control it
+	oldStdin := os.Stdin
+	os.Stdin = r
+	defer func() { os.Stdin = oldStdin }()
+
+	// Start pausing
+	complete := make(chan bool, 1)
+	go func() {
+		DebugPauseDefault(loc, name, state)
+		complete <- true
+	}()
+
+	select {
+	case <-complete:
+		t.Fatal("shouldn't have completed")
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	w.Write([]byte("\n"))
+
+	select {
+	case <-complete:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("didn't complete")
 	}
 }
