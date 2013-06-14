@@ -81,6 +81,18 @@ func (r *DebugRunner) Cancel() {
 // to stderr about the step and waits for keyboard input on stdin before
 // continuing.
 func DebugPauseDefault(loc DebugLocation, name string, state map[string]interface{}) {
+	var locationString string
+	switch loc {
+	case DebugLocationAfterRun:
+		locationString = "after run of"
+	case DebugLocationBeforeCleanup:
+		locationString = "before cleanup of"
+	default:
+		locationString = "at"
+	}
+
+	fmt.Printf("Pausing %s step '%s'. Press any key to continue.\n", locationString, name)
+
 	var line string
 	fmt.Scanln(&line)
 }
