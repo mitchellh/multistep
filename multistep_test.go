@@ -16,7 +16,7 @@ type TestStepSync struct {
 	Ch chan chan bool
 }
 
-func (s TestStepAcc) Run(state map[string]interface{}) StepAction {
+func (s TestStepAcc) Run(state StateBag) StepAction {
 	s.insertData(state, "data")
 
 	if s.Halt {
@@ -26,21 +26,21 @@ func (s TestStepAcc) Run(state map[string]interface{}) StepAction {
 	return ActionContinue
 }
 
-func (s TestStepAcc) Cleanup(state map[string]interface{}) {
+func (s TestStepAcc) Cleanup(state StateBag) {
 	s.insertData(state, "cleanup")
 }
 
-func (s TestStepAcc) insertData(state map[string]interface{}, key string) {
-	if _, ok := state[key]; !ok {
-		state[key] = make([]string, 0, 5)
+func (s TestStepAcc) insertData(state StateBag, key string) {
+	if _, ok := state.GetOk(key); !ok {
+		state.Put(key, make([]string, 0, 5))
 	}
 
-	data := state[key].([]string)
+	data := state.Get(key).([]string)
 	data = append(data, s.Data)
-	state[key] = data
+	state.Put(key, data)
 }
 
-func (s TestStepSync) Run(map[string]interface{}) StepAction {
+func (s TestStepSync) Run(StateBag) StepAction {
 	ch := make(chan bool)
 	s.Ch <- ch
 	<-ch
@@ -48,4 +48,4 @@ func (s TestStepSync) Run(map[string]interface{}) StepAction {
 	return ActionContinue
 }
 
-func (s TestStepSync) Cleanup(map[string]interface{}) {}
+func (s TestStepSync) Cleanup(StateBag) {}

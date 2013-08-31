@@ -15,7 +15,7 @@ func TestBasicRunner_ImplRunner(t *testing.T) {
 }
 
 func TestBasicRunner_Run(t *testing.T) {
-	data := make(map[string]interface{})
+	data := new(BasicStateBag)
 	stepA := &TestStepAcc{Data: "a"}
 	stepB := &TestStepAcc{Data: "b"}
 
@@ -24,30 +24,30 @@ func TestBasicRunner_Run(t *testing.T) {
 
 	// Test run data
 	expected := []string{"a", "b"}
-	results := data["data"].([]string)
+	results := data.Get("data").([]string)
 	if !reflect.DeepEqual(results, expected) {
 		t.Errorf("unexpected result: %#v", results)
 	}
 
 	// Test cleanup data
 	expected = []string{"b", "a"}
-	results = data["cleanup"].([]string)
+	results = data.Get("cleanup").([]string)
 	if !reflect.DeepEqual(results, expected) {
 		t.Errorf("unexpected result: %#v", results)
 	}
 
 	// Test no halted or cancelled
-	if _, ok := data[StateCancelled]; ok {
+	if _, ok := data.GetOk(StateCancelled); ok {
 		t.Errorf("cancelled should not be in state bag")
 	}
 
-	if _, ok := data[StateHalted]; ok {
+	if _, ok := data.GetOk(StateHalted); ok {
 		t.Errorf("halted should not be in state bag")
 	}
 }
 
 func TestBasicRunner_Run_Halt(t *testing.T) {
-	data := make(map[string]interface{})
+	data := new(BasicStateBag)
 	stepA := &TestStepAcc{Data: "a"}
 	stepB := &TestStepAcc{Data: "b", Halt: true}
 	stepC := &TestStepAcc{Data: "c"}
@@ -57,20 +57,20 @@ func TestBasicRunner_Run_Halt(t *testing.T) {
 
 	// Test run data
 	expected := []string{"a", "b"}
-	results := data["data"].([]string)
+	results := data.Get("data").([]string)
 	if !reflect.DeepEqual(results, expected) {
 		t.Errorf("unexpected result: %#v", results)
 	}
 
 	// Test cleanup data
 	expected = []string{"b", "a"}
-	results = data["cleanup"].([]string)
+	results = data.Get("cleanup").([]string)
 	if !reflect.DeepEqual(results, expected) {
 		t.Errorf("unexpected result: %#v", results)
 	}
 
 	// Test that it says it is halted
-	halted := data[StateHalted].(bool)
+	halted := data.Get(StateHalted).(bool)
 	if !halted {
 		t.Errorf("not halted")
 	}
@@ -78,7 +78,7 @@ func TestBasicRunner_Run_Halt(t *testing.T) {
 
 func TestBasicRunner_Cancel(t *testing.T) {
 	ch := make(chan chan bool)
-	data := make(map[string]interface{})
+	data := new(BasicStateBag)
 	stepA := &TestStepAcc{Data: "a"}
 	stepB := &TestStepAcc{Data: "b"}
 	stepInt := &TestStepSync{ch}
@@ -98,7 +98,7 @@ func TestBasicRunner_Cancel(t *testing.T) {
 	}()
 
 	for {
-		if _, ok := data[StateCancelled]; ok {
+		if _, ok := data.GetOk(StateCancelled); ok {
 			responseCh <- true
 			break
 		}
@@ -110,20 +110,20 @@ func TestBasicRunner_Cancel(t *testing.T) {
 
 	// Test run data
 	expected := []string{"a", "b"}
-	results := data["data"].([]string)
+	results := data.Get("data").([]string)
 	if !reflect.DeepEqual(results, expected) {
 		t.Errorf("unexpected result: %#v", results)
 	}
 
 	// Test cleanup data
 	expected = []string{"b", "a"}
-	results = data["cleanup"].([]string)
+	results = data.Get("cleanup").([]string)
 	if !reflect.DeepEqual(results, expected) {
 		t.Errorf("unexpected result: %#v", results)
 	}
 
 	// Test that it says it is cancelled
-	cancelled := data[StateCancelled].(bool)
+	cancelled := data.Get(StateCancelled).(bool)
 	if !cancelled {
 		t.Errorf("not cancelled")
 	}

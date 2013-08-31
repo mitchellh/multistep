@@ -16,22 +16,22 @@ func TestDebugRunner_Impl(t *testing.T) {
 }
 
 func TestDebugRunner_Run(t *testing.T) {
-	data := make(map[string]interface{})
+	data := new(BasicStateBag)
 	stepA := &TestStepAcc{Data: "a"}
 	stepB := &TestStepAcc{Data: "b"}
 
-	pauseFn := func(loc DebugLocation, name string, state map[string]interface{}) {
+	pauseFn := func(loc DebugLocation, name string, state StateBag) {
 		key := "data"
 		if loc == DebugLocationBeforeCleanup {
 			key = "cleanup"
 		}
 
-		if _, ok := state[key]; !ok {
-			state[key] = make([]string, 0, 5)
+		if _, ok := state.GetOk(key); !ok {
+			state.Put(key, make([]string, 0, 5))
 		}
 
-		data := state[key].([]string)
-		state[key] = append(data, name)
+		data := state.Get(key).([]string)
+		state.Put(key, append(data, name))
 	}
 
 	r := &DebugRunner{
@@ -43,14 +43,14 @@ func TestDebugRunner_Run(t *testing.T) {
 
 	// Test data
 	expected := []string{"a", "TestStepAcc", "b", "TestStepAcc"}
-	results := data["data"].([]string)
+	results := data.Get("data").([]string)
 	if !reflect.DeepEqual(results, expected) {
 		t.Errorf("unexpected results: %#v", results)
 	}
 
 	// Test cleanup
 	expected = []string{"TestStepAcc", "b", "TestStepAcc", "a"}
-	results = data["cleanup"].([]string)
+	results = data.Get("cleanup").([]string)
 	if !reflect.DeepEqual(results, expected) {
 		t.Errorf("unexpected results: %#v", results)
 	}
@@ -59,7 +59,7 @@ func TestDebugRunner_Run(t *testing.T) {
 func TestDebugPauseDefault(t *testing.T) {
 	loc := DebugLocationAfterRun
 	name := "foo"
-	state := map[string]interface{}{}
+	state := new(BasicStateBag)
 
 	// Create a pipe pair so that writes/reads are blocked until we do it
 	r, w, err := os.Pipe()

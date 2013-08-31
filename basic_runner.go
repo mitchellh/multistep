@@ -14,7 +14,7 @@ type BasicRunner struct {
 	l          sync.Mutex
 }
 
-func (b *BasicRunner) Run(state map[string]interface{}) {
+func (b *BasicRunner) Run(state StateBag) {
 	// Make sure we only run one at a time
 	b.l.Lock()
 	if b.running {
@@ -37,7 +37,7 @@ func (b *BasicRunner) Run(state map[string]interface{}) {
 		b.cancelCond.L.Unlock()
 
 		if b.cancelChs != nil {
-			state[StateCancelled] = true
+			state.Put(StateCancelled, true)
 		}
 
 		cancelEnded <- true
@@ -73,19 +73,19 @@ func (b *BasicRunner) Run(state map[string]interface{}) {
 		// We also check for cancellation here since we can't be sure
 		// the goroutine that is running to set it actually ran.
 		if b.cancelChs != nil {
-			state[StateCancelled] = true
+			state.Put(StateCancelled, true)
 			break
 		}
 
 		action := step.Run(state)
 		defer step.Cleanup(state)
 
-		if _, ok := state[StateCancelled]; ok {
+		if _, ok := state.GetOk(StateCancelled); ok {
 			break
 		}
 
 		if action == ActionHalt {
-			state[StateHalted] = true
+			state.Put(StateHalted, true)
 			break
 		}
 	}

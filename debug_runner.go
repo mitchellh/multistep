@@ -20,7 +20,7 @@ const (
 // DebugPauseFn is the type signature for the function that is called
 // whenever the DebugRunner pauses. It allows the caller time to
 // inspect the state of the multi-step sequence at a given step.
-type DebugPauseFn func(DebugLocation, string, map[string]interface{})
+type DebugPauseFn func(DebugLocation, string, StateBag)
 
 // DebugRunner is a Runner that runs the given set of steps in order,
 // but pauses between each step until it is told to continue.
@@ -37,7 +37,7 @@ type DebugRunner struct {
 	runner *BasicRunner
 }
 
-func (r *DebugRunner) Run(state map[string]interface{}) {
+func (r *DebugRunner) Run(state StateBag) {
 	r.l.Lock()
 	if r.runner != nil {
 		panic("already running")
@@ -80,7 +80,7 @@ func (r *DebugRunner) Cancel() {
 // DebugRunner if no PauseFn is specified. It outputs some information
 // to stderr about the step and waits for keyboard input on stdin before
 // continuing.
-func DebugPauseDefault(loc DebugLocation, name string, state map[string]interface{}) {
+func DebugPauseDefault(loc DebugLocation, name string, state StateBag) {
 	var locationString string
 	switch loc {
 	case DebugLocationAfterRun:
@@ -102,11 +102,11 @@ type debugStepPause struct {
 	PauseFn  DebugPauseFn
 }
 
-func (s *debugStepPause) Run(state map[string]interface{}) StepAction {
+func (s *debugStepPause) Run(state StateBag) StepAction {
 	s.PauseFn(DebugLocationAfterRun, s.StepName, state)
 	return ActionContinue
 }
 
-func (s *debugStepPause) Cleanup(state map[string]interface{}) {
+func (s *debugStepPause) Cleanup(state StateBag) {
 	s.PauseFn(DebugLocationBeforeCleanup, s.StepName, state)
 }

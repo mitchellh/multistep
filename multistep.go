@@ -26,7 +26,7 @@ type Step interface {
 	//
 	// The return value determines whether multi-step sequences continue
 	// or should halt.
-	Run(map[string]interface{}) StepAction
+	Run(StateBag) StepAction
 
 	// Cleanup is called in reverse order of the steps that have run
 	// and allow steps to clean up after themselves. Do not assume if this
@@ -35,13 +35,13 @@ type Step interface {
 	//
 	// The parameter is the same "state bag" as Run, and represents the
 	// state at the latest possible time prior to calling Cleanup.
-	Cleanup(map[string]interface{})
+	Cleanup(StateBag)
 }
 
 // Runner is a thing that runs one or more steps.
 type Runner interface {
 	// Run runs the steps with the given initial state.
-	Run(map[string]interface{})
+	Run(StateBag)
 
 	// Cancel cancels a potentially running stack of steps.
 	Cancel()
