@@ -86,6 +86,7 @@ func (b *BasicRunner) Cancel() {
 	switch b.state {
 	case stateIdle:
 		// Not running, so Cancel is... done.
+		b.l.Unlock()
 		return
 	case stateRunning:
 		// Running, so mark that we cancelled and set the state
