@@ -1,9 +1,5 @@
 package multistep
 
-import (
-	"runtime"
-)
-
 // A step for testing that accumuluates data into a string slice in the
 // the state bag. It always uses the "data" key in the state bag, and will
 // initialize it.
@@ -13,6 +9,11 @@ type TestStepAcc struct {
 
 	// If true, it will halt at the step when it is run
 	Halt bool
+}
+
+// A step that syncs by sending a channel and expecting a response.
+type TestStepSync struct {
+	Ch chan chan bool
 }
 
 func (s TestStepAcc) Run(state map[string]interface{}) StepAction {
@@ -39,18 +40,12 @@ func (s TestStepAcc) insertData(state map[string]interface{}, key string) {
 	state[key] = data
 }
 
-type TestStepSync struct {
-	C <-chan struct{}
-}
-
 func (s TestStepSync) Run(map[string]interface{}) StepAction {
-	<-s.C
-	runtime.Gosched() // ensure that any calls to cancel have a chance to run
+	ch := make(chan bool)
+	s.Ch <- ch
+	<-ch
+
 	return ActionContinue
 }
 
-func (s TestStepSync) Cleanup(state map[string]interface{}) {
-	if _, ok := state[StateCancelled]; ok {
-		state["sync_cancelled"] = true
-	}
-}
+func (s TestStepSync) Cleanup(map[string]interface{}) {}

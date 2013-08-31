@@ -3,6 +3,7 @@ package multistep
 import (
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestBasicRunner_ImplRunner(t *testing.T) {
@@ -76,18 +77,36 @@ func TestBasicRunner_Run_Halt(t *testing.T) {
 }
 
 func TestBasicRunner_Cancel(t *testing.T) {
+	ch := make(chan chan bool)
 	data := make(map[string]interface{})
 	stepA := &TestStepAcc{Data: "a"}
 	stepB := &TestStepAcc{Data: "b"}
-	sync := make(chan struct{})
-	stepInt := &TestStepSync{C: sync}
+	stepInt := &TestStepSync{ch}
 	stepC := &TestStepAcc{Data: "c"}
 
 	r := &BasicRunner{Steps: []Step{stepA, stepB, stepInt, stepC}}
 	go r.Run(data)
 
-	sync <- struct{}{} // continue stepInt
-	r.Cancel()
+	// Wait until we reach the sync point
+	responseCh := <-ch
+
+	// Cancel then continue chain
+	cancelCh := make(chan bool)
+	go func() {
+		r.Cancel()
+		cancelCh <- true
+	}()
+
+	for {
+		if _, ok := data[StateCancelled]; ok {
+			responseCh <- true
+			break
+		}
+
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	<-cancelCh
 
 	// Test run data
 	expected := []string{"a", "b"}
@@ -103,13 +122,9 @@ func TestBasicRunner_Cancel(t *testing.T) {
 		t.Errorf("unexpected result: %#v", results)
 	}
 
-	// Test that the sync cleanup had the cancelled flag
-	if _, ok := data["sync_cancelled"]; !ok {
-		t.Errorf("sync cleanup not cancelled")
-	}
-
-	// Test that it says it was cancelled
-	if _, ok := data[StateCancelled]; !ok {
+	// Test that it says it is cancelled
+	cancelled := data[StateCancelled].(bool)
+	if !cancelled {
 		t.Errorf("not cancelled")
 	}
 }

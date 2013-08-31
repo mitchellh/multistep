@@ -8,51 +8,81 @@ type BasicRunner struct {
 	// modified.
 	Steps []Step
 
-	cancelDone chan struct{}
-	runState   runState
-	// l protects runState
-	l sync.Mutex
+	cancelCond *sync.Cond
+	cancelChs  []chan<- bool
+	running    bool
+	l          sync.Mutex
 }
 
-type runState int
-
-const (
-	stateInitial = iota
-	stateRunning
-	stateCancelling
-)
-
 func (b *BasicRunner) Run(state map[string]interface{}) {
+	// Make sure we only run one at a time
 	b.l.Lock()
-	// Make sure we only run one instance at a time
-	if b.runState != stateInitial {
+	if b.running {
 		panic("already running")
 	}
-	b.cancelDone = make(chan struct{})
-	b.runState = stateRunning
+	b.cancelChs = nil
+	b.cancelCond = sync.NewCond(&sync.Mutex{})
+	b.running = true
 	b.l.Unlock()
 
-	// This runs after all of the cleanup steps so that we can notify any
-	// waiting Cancel callers and transition the state back to initial
+	// cancelReady is used to signal that the cancellation goroutine
+	// started and is waiting. The cancelEnded channel is used to
+	// signal the goroutine actually ended.
+	cancelReady := make(chan bool, 1)
+	cancelEnded := make(chan bool)
+	go func() {
+		b.cancelCond.L.Lock()
+		cancelReady <- true
+		b.cancelCond.Wait()
+		b.cancelCond.L.Unlock()
+
+		if b.cancelChs != nil {
+			state[StateCancelled] = true
+		}
+
+		cancelEnded <- true
+	}()
+
+	// Create the channel that we'll say we're done on in the case of
+	// interrupts here. We do this here so that this deferred statement
+	// runs last, so all the Cleanup methods are able to run.
 	defer func() {
 		b.l.Lock()
-		b.runState = stateInitial
-		b.l.Unlock()
-		close(b.cancelDone)
+		defer b.l.Unlock()
+
+		// Make sure the cancellation goroutine cleans up properly. This
+		// is a bit complicated. Basically, we first wait until the goroutine
+		// waiting for cancellation is actually waiting. Then we broadcast
+		// to it so it can unlock. Then we wait for it to tell us it finished.
+		<-cancelReady
+		b.cancelCond.L.Lock()
+		b.cancelCond.Broadcast()
+		b.cancelCond.L.Unlock()
+		<-cancelEnded
+
+		if b.cancelChs != nil {
+			for _, doneCh := range b.cancelChs {
+				doneCh <- true
+			}
+		}
+
+		b.running = false
 	}()
 
 	for _, step := range b.Steps {
-		b.l.Lock()
-		if b.runState != stateRunning {
-			// We've been cancelled, update the state bag and abort
-			b.l.Unlock()
+		// We also check for cancellation here since we can't be sure
+		// the goroutine that is running to set it actually ran.
+		if b.cancelChs != nil {
 			state[StateCancelled] = true
 			break
 		}
-		b.l.Unlock()
 
 		action := step.Run(state)
 		defer step.Cleanup(state)
+
+		if _, ok := state[StateCancelled]; ok {
+			break
+		}
 
 		if action == ActionHalt {
 			state[StateHalted] = true
@@ -63,15 +93,20 @@ func (b *BasicRunner) Run(state map[string]interface{}) {
 
 func (b *BasicRunner) Cancel() {
 	b.l.Lock()
-	// No-op if we're not running
-	if b.runState == stateInitial {
+
+	if !b.running {
 		b.l.Unlock()
 		return
 	}
-	// Transition state from running to cancelling
-	b.runState = stateCancelling
+
+	if b.cancelChs == nil {
+		b.cancelChs = make([]chan<- bool, 0, 5)
+	}
+
+	done := make(chan bool)
+	b.cancelChs = append(b.cancelChs, done)
+	b.cancelCond.Broadcast()
 	b.l.Unlock()
 
-	// Wait until all of the cleanup hooks have been run
-	<-b.cancelDone
+	<-done
 }
