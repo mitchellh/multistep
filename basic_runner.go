@@ -19,10 +19,10 @@ type BasicRunner struct {
 	// modified.
 	Steps []Step
 
-	cancelCh   chan struct{}
-	doneCh     chan struct{}
-	state runState
-	l          sync.Mutex
+	cancelCh chan struct{}
+	doneCh   chan struct{}
+	state    runState
+	l        sync.Mutex
 }
 
 func (b *BasicRunner) Run(state StateBag) {
