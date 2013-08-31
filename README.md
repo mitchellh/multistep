@@ -13,18 +13,20 @@ which is passed between steps by the runner.
 ```go
 type stepAdd struct{}
 
-func (s *stepAdd) Run(state map[string]interface{}) multistep.StepAction {
+func (s *stepAdd) Run(state multistep.StateBag) multistep.StepAction {
     // Read our value and assert that it is they type we want
-    value := state["value"].(int)
-
+    value := state.Get("value").(int)
     fmt.Printf("Value is %d\n", value)
 
-    state["value"] = value + 1
-
+	// Store some state back
+	state.Put("value", value + 1)
     return multistep.ActionContinue
 }
 
-func (s *stepAdd) Cleanup(map[string]interface{}) {}
+func (s *stepAdd) Cleanup(multistep.StateBag) {
+	// This is called after all the steps have run or if the runner is
+	// cancelled so that cleanup can be performed.
+}
 ```
 
 Make a runner and call your array of Steps.
@@ -32,10 +34,8 @@ Make a runner and call your array of Steps.
 ```go
 func main() {
     // Our "bag of state" that we read the value from
-    state := make(map[string]interface{})
-
-    // Our initial value
-    state["value"] = 0
+    state := new(multistep.BasicStateBag)
+	state.Put("value", 0)
 
     steps := []multistep.Step{
         &stepAdd{},
