@@ -87,8 +87,6 @@ func DebugPauseDefault(loc DebugLocation, name string, state StateBag) {
 		locationString = "after run of"
 	case DebugLocationBeforeCleanup:
 		locationString = "before cleanup of"
-	default:
-		locationString = "at"
 	}
 
 	fmt.Printf("Pausing %s step '%s'. Press any key to continue.\n", locationString, name)
