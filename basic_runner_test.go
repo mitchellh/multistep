@@ -76,6 +76,27 @@ func TestBasicRunner_Run_Halt(t *testing.T) {
 	}
 }
 
+// confirm that can't run twice
+func TestBasicRunner_Run_Run(t *testing.T) {
+	defer func() {
+		recover()
+	}()
+	ch := make(chan chan bool)
+	stepInt := &TestStepSync{ch}
+	stepWait := &TestStepWaitForever{}
+	r := &BasicRunner{Steps: []Step{stepInt, stepWait}}
+
+	go r.Run(new(BasicStateBag))
+	// wait until really running
+	<-ch
+
+	// now try to run aain
+	r.Run(new(BasicStateBag))
+
+	// should not get here in nominal codepath
+	t.Errorf("Was able to run an already running BasicRunner")
+}
+
 func TestBasicRunner_Cancel(t *testing.T) {
 	ch := make(chan chan bool)
 	data := new(BasicStateBag)
@@ -85,6 +106,10 @@ func TestBasicRunner_Cancel(t *testing.T) {
 	stepC := &TestStepAcc{Data: "c"}
 
 	r := &BasicRunner{Steps: []Step{stepA, stepB, stepInt, stepC}}
+
+	// cancelling an idle Runner is a no-op
+	r.Cancel()
+
 	go r.Run(data)
 
 	// Wait until we reach the sync point
@@ -126,5 +151,20 @@ func TestBasicRunner_Cancel(t *testing.T) {
 	cancelled := data.Get(StateCancelled).(bool)
 	if !cancelled {
 		t.Errorf("not cancelled")
+	}
+}
+
+func TestBasicRunner_Cancel_Special(t *testing.T) {
+	stepOne := &TestStepInjectCancel{}
+	stepTwo := &TestStepInjectCancel{}
+	r := &BasicRunner{Steps: []Step{stepOne, stepTwo}}
+
+	state := new(BasicStateBag)
+	state.Put("runner", r)
+	r.Run(state)
+
+	// test that state contains cancelled
+	if _, ok := state.GetOk(StateCancelled); !ok {
+		t.Errorf("cancelled should be in state bag")
 	}
 }

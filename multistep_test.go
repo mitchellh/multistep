@@ -16,6 +16,14 @@ type TestStepSync struct {
 	Ch chan chan bool
 }
 
+// A step that sleeps forever
+type TestStepWaitForever struct {
+}
+
+// A step that manually flips state to cancelling in run
+type TestStepInjectCancel struct {
+}
+
 func (s TestStepAcc) Run(state StateBag) StepAction {
 	s.insertData(state, "data")
 
@@ -49,3 +57,18 @@ func (s TestStepSync) Run(StateBag) StepAction {
 }
 
 func (s TestStepSync) Cleanup(StateBag) {}
+
+func (s TestStepWaitForever) Run(StateBag) StepAction {
+	select {}
+	return ActionContinue
+}
+
+func (s TestStepWaitForever) Cleanup(StateBag) {}
+
+func (s TestStepInjectCancel) Run(state StateBag) StepAction {
+	r := state.Get("runner").(*BasicRunner)
+	r.state = stateCancelling
+	return ActionContinue
+}
+
+func (s TestStepInjectCancel) Cleanup(StateBag) {}
