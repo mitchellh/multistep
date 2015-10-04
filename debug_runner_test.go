@@ -164,11 +164,48 @@ func TestDebugPauseDefault(t *testing.T) {
 	case <-time.After(100 * time.Millisecond):
 	}
 
-	w.Write([]byte("\n\n"))
+	_, _ = w.Write([]byte("\n\n")) // ignore error
 
 	select {
 	case <-complete:
 	case <-time.After(100 * time.Millisecond):
 		t.Fatal("didn't complete")
+	}
+}
+
+// confirm that a halting step is debuggable before cleanup
+func TestDebugRunner_Halt(t *testing.T) {
+	data := new(BasicStateBag)
+	stepA := &TestStepAcc{Data: "a"}
+	stepB := &TestStepAcc{Data: "b", Halt: true}
+	stepC := &TestStepAcc{Data: "c"}
+
+	key := "data"
+	pauseFn := func(loc DebugLocation, name string, state StateBag) {
+		direction := "Run"
+		if loc == DebugLocationBeforeCleanup {
+			direction = "Cleanup"
+		}
+
+		if _, ok := state.GetOk(key); !ok {
+			state.Put(key, []string{})
+		}
+
+		data := state.Get(key).([]string)
+		state.Put(key, append(data, direction))
+	}
+
+	r := &DebugRunner{
+		Steps:   []Step{stepA, stepB, stepC},
+		PauseFn: pauseFn,
+	}
+
+	r.Run(data)
+
+	// Test data
+	expected := []string{"a", "Run", "b", "Run", "Cleanup", "Cleanup"}
+	results := data.Get("data").([]string)
+	if !reflect.DeepEqual(results, expected) {
+		t.Errorf("unexpected results: %#v", results)
 	}
 }
