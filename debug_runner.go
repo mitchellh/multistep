@@ -52,12 +52,12 @@ func (r *DebugRunner) Run(state StateBag) {
 		pauseFn = DebugPauseDefault
 	}
 
-	// Rebuild the steps so that we insert the pause step after each
-	steps := make([]Step, len(r.Steps)*2)
+	// Wrap steps to call PauseFn after each run and before each cleanup
+	steps := make([]Step, len(r.Steps))
 	for i, step := range r.Steps {
-		steps[i*2] = step
-		steps[(i*2)+1] = &debugStepPause{
+		steps[i] = &debugStepPause{
 			reflect.Indirect(reflect.ValueOf(step)).Type().Name(),
+			step,
 			pauseFn,
 		}
 	}
@@ -97,14 +97,17 @@ func DebugPauseDefault(loc DebugLocation, name string, state StateBag) {
 
 type debugStepPause struct {
 	StepName string
+	Step     Step
 	PauseFn  DebugPauseFn
 }
 
 func (s *debugStepPause) Run(state StateBag) StepAction {
+	action := s.Step.Run(state)
 	s.PauseFn(DebugLocationAfterRun, s.StepName, state)
-	return ActionContinue
+	return action
 }
 
 func (s *debugStepPause) Cleanup(state StateBag) {
 	s.PauseFn(DebugLocationBeforeCleanup, s.StepName, state)
+	s.Step.Cleanup(state)
 }
