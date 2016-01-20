@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"golang.org/x/net/context"
 )
 
 func TestDebugRunner_Impl(t *testing.T) {
@@ -39,7 +41,7 @@ func TestDebugRunner_Run(t *testing.T) {
 		PauseFn: pauseFn,
 	}
 
-	r.Run(data)
+	r.Run(context.Background(), data)
 
 	// Test data
 	expected := []string{"a", "TestStepAcc", "b", "TestStepAcc"}
@@ -66,12 +68,12 @@ func TestDebugRunner_Run_Run(t *testing.T) {
 	stepWait := &TestStepWaitForever{}
 	r := &DebugRunner{Steps: []Step{stepInt, stepWait}}
 
-	go r.Run(new(BasicStateBag))
+	go r.Run(context.Background(), new(BasicStateBag))
 	// wait until really running
 	<-ch
 
 	// now try to run aain
-	r.Run(new(BasicStateBag))
+	r.Run(context.Background(), new(BasicStateBag))
 
 	// should not get here in nominal codepath
 	t.Errorf("Was able to run an already running DebugRunner")
@@ -91,7 +93,7 @@ func TestDebugRunner_Cancel(t *testing.T) {
 	// cancelling an idle Runner is a no-op
 	r.Cancel()
 
-	go r.Run(data)
+	go r.Run(context.Background(), data)
 
 	// Wait until we reach the sync point
 	responseCh := <-ch
@@ -154,7 +156,7 @@ func TestDebugPauseDefault(t *testing.T) {
 		dr := &DebugRunner{Steps: []Step{
 			&TestStepAcc{Data: "a"},
 		}}
-		dr.Run(new(BasicStateBag))
+		dr.Run(context.Background(), new(BasicStateBag))
 		complete <- true
 	}()
 

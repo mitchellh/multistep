@@ -1,5 +1,7 @@
 package multistep
 
+import "golang.org/x/net/context"
+
 // A step for testing that accumuluates data into a string slice in the
 // the state bag. It always uses the "data" key in the state bag, and will
 // initialize it.
@@ -24,7 +26,7 @@ type TestStepWaitForever struct {
 type TestStepInjectCancel struct {
 }
 
-func (s TestStepAcc) Run(state StateBag) StepAction {
+func (s TestStepAcc) Run(_ context.Context, state StateBag) StepAction {
 	s.insertData(state, "data")
 
 	if s.Halt {
@@ -48,7 +50,7 @@ func (s TestStepAcc) insertData(state StateBag, key string) {
 	state.Put(key, data)
 }
 
-func (s TestStepSync) Run(StateBag) StepAction {
+func (s TestStepSync) Run(context.Context, StateBag) StepAction {
 	ch := make(chan bool)
 	s.Ch <- ch
 	<-ch
@@ -58,14 +60,14 @@ func (s TestStepSync) Run(StateBag) StepAction {
 
 func (s TestStepSync) Cleanup(StateBag) {}
 
-func (s TestStepWaitForever) Run(StateBag) StepAction {
+func (s TestStepWaitForever) Run(context.Context, StateBag) StepAction {
 	select {}
 	return ActionContinue
 }
 
 func (s TestStepWaitForever) Cleanup(StateBag) {}
 
-func (s TestStepInjectCancel) Run(state StateBag) StepAction {
+func (s TestStepInjectCancel) Run(_ context.Context, state StateBag) StepAction {
 	r := state.Get("runner").(*BasicRunner)
 	r.state = stateCancelling
 	return ActionContinue

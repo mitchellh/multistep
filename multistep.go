@@ -2,6 +2,10 @@
 // discrete steps.
 package multistep
 
+import (
+	"golang.org/x/net/context"
+)
+
 // A StepAction determines the next step to take regarding multi-step actions.
 type StepAction uint
 
@@ -26,7 +30,7 @@ type Step interface {
 	//
 	// The return value determines whether multi-step sequences continue
 	// or should halt.
-	Run(StateBag) StepAction
+	Run(context.Context, StateBag) StepAction
 
 	// Cleanup is called in reverse order of the steps that have run
 	// and allow steps to clean up after themselves. Do not assume if this
@@ -41,7 +45,7 @@ type Step interface {
 // Runner is a thing that runs one or more steps.
 type Runner interface {
 	// Run runs the steps with the given initial state.
-	Run(StateBag)
+	Run(context.Context, StateBag)
 
 	// Cancel cancels a potentially running stack of steps.
 	Cancel()

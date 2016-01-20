@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
+
+	"golang.org/x/net/context"
 )
 
 // DebugLocation is the location where the pause is occuring when debugging
@@ -37,7 +39,7 @@ type DebugRunner struct {
 	runner *BasicRunner
 }
 
-func (r *DebugRunner) Run(state StateBag) {
+func (r *DebugRunner) Run(ctx context.Context, state StateBag) {
 	r.l.Lock()
 	if r.runner != nil {
 		panic("already running")
@@ -64,7 +66,7 @@ func (r *DebugRunner) Run(state StateBag) {
 
 	// Then just use a basic runner to run it
 	r.runner.Steps = steps
-	r.runner.Run(state)
+	r.runner.Run(ctx, state)
 }
 
 func (r *DebugRunner) Cancel() {
@@ -100,7 +102,7 @@ type debugStepPause struct {
 	PauseFn  DebugPauseFn
 }
 
-func (s *debugStepPause) Run(state StateBag) StepAction {
+func (s *debugStepPause) Run(_ context.Context, state StateBag) StepAction {
 	s.PauseFn(DebugLocationAfterRun, s.StepName, state)
 	return ActionContinue
 }
