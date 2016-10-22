@@ -1,7 +1,9 @@
 package multistep
 
 import (
+	"bufio"
 	"fmt"
+	"os"
 	"reflect"
 	"sync"
 )
@@ -22,6 +24,14 @@ const (
 type StepWrapper interface {
 	// InnerStepName should return the human readable name of the wrapped step.
 	InnerStepName() string
+}
+
+// String statisfies the Stringer interface
+func (d DebugLocation) String() string {
+	if d > 0 {
+		return "before cleanup of"
+	}
+	return "after run of"
 }
 
 // DebugPauseFn is the type signature for the function that is called
@@ -94,18 +104,8 @@ func (r *DebugRunner) Cancel() {
 // to stderr about the step and waits for keyboard input on stdin before
 // continuing.
 func DebugPauseDefault(loc DebugLocation, name string, state StateBag) {
-	var locationString string
-	switch loc {
-	case DebugLocationAfterRun:
-		locationString = "after run of"
-	case DebugLocationBeforeCleanup:
-		locationString = "before cleanup of"
-	}
-
-	fmt.Printf("Pausing %s step '%s'. Press any key to continue.\n", locationString, name)
-
-	var line string
-	fmt.Scanln(&line)
+	fmt.Printf("Pausing %s step '%s'. Press enter to continue.", loc, name)
+	bufio.NewReader(os.Stdin).ReadLine()
 }
 
 type debugStepPause struct {

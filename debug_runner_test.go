@@ -1,11 +1,15 @@
 package multistep
 
 import (
-	"os"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
 )
+
+func testingPauseFn(DebugLocation, string, StateBag) {
+	return
+}
 
 func TestDebugRunner_Impl(t *testing.T) {
 	var raw interface{}
@@ -64,7 +68,7 @@ func TestDebugRunner_Run_Run(t *testing.T) {
 	ch := make(chan chan bool)
 	stepInt := &TestStepSync{ch}
 	stepWait := &TestStepWaitForever{}
-	r := &DebugRunner{Steps: []Step{stepInt, stepWait}}
+	r := &DebugRunner{Steps: []Step{stepInt, stepWait}, PauseFn: testingPauseFn}
 
 	go r.Run(new(BasicStateBag))
 	// wait until really running
@@ -85,7 +89,7 @@ func TestDebugRunner_Cancel(t *testing.T) {
 	stepInt := &TestStepSync{ch}
 	stepC := &TestStepAcc{Data: "c"}
 
-	r := &DebugRunner{}
+	r := &DebugRunner{PauseFn: testingPauseFn}
 	r.Steps = []Step{stepA, stepB, stepInt, stepC}
 
 	// cancelling an idle Runner is a no-op
@@ -136,39 +140,59 @@ func TestDebugRunner_Cancel(t *testing.T) {
 }
 
 func TestDebugPauseDefault(t *testing.T) {
-
-	// Create a pipe pair so that writes/reads are blocked until we do it
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	// Set stdin so we can control it
-	oldStdin := os.Stdin
-	os.Stdin = r
-	defer func() { os.Stdin = oldStdin }()
+	now := time.Now()
+	t.Logf("[%s] start", time.Since(now))
 
 	// Start pausing
 	complete := make(chan bool, 1)
 	go func() {
-		dr := &DebugRunner{Steps: []Step{
-			&TestStepAcc{Data: "a"},
-		}}
+		t.Logf("[%s] anon func", time.Since(now))
+		dr := &DebugRunner{
+			Steps: []Step{
+				&TestStepAcc{Data: "a"},
+			},
+			PauseFn: func(DebugLocation, string, StateBag) {
+				t.Logf("[%s] PauseFn start", time.Since(now))
+				time.Sleep(50 * time.Millisecond)
+				t.Logf("[%s] PauseFn stop", time.Since(now))
+			},
+		}
+
+		t.Logf("[%s] anon func start dr.Run", time.Since(now))
 		dr.Run(new(BasicStateBag))
+		t.Logf("[%s] anon func end dr.Run", time.Since(now))
+
+		t.Logf("[%s] anon func blocked", time.Since(now))
 		complete <- true
+		t.Logf("[%s] anon func unblocked", time.Since(now))
 	}()
 
+	t.Logf("[%s] complete blocked", time.Since(now))
 	select {
 	case <-complete:
+		t.Logf("[%s] received complete", time.Since(now))
 		t.Fatal("shouldn't have completed")
-	case <-time.After(100 * time.Millisecond):
+	case a := <-time.After(5 * time.Millisecond):
+		t.Logf("[%s] received After [%s]", time.Since(now), time.Since(a))
 	}
+	t.Logf("[%s] complete unblocked", time.Since(now))
 
-	w.Write([]byte("\n\n"))
-
+	t.Logf("[%s] select final start", time.Since(now))
 	select {
 	case <-complete:
-	case <-time.After(100 * time.Millisecond):
+		t.Logf("[%s] select final complete", time.Since(now))
+	case a := <-time.After(200 * time.Millisecond):
+		t.Logf("[%s] select final After [%s]", time.Since(now), time.Since(a))
 		t.Fatal("didn't complete")
 	}
+}
+
+func ExampleDebugLocationAfterRunString() {
+	fmt.Println(DebugLocationAfterRun.String())
+	// Output: after run of
+}
+
+func ExampleDebugLocationBeforeCleanupString() {
+	fmt.Println(DebugLocationBeforeCleanup.String())
+	// Output: before cleanup of
 }
